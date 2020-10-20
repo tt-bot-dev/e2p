@@ -13,11 +13,9 @@
     "build": "cargo build --release && napi build --platform --release",
     "install": "cargo build --release && napi build --platform --release"
   },
-  "devDependencies": {
-    "napi-rs": "latest"
-  },
   "dependencies": {
-    "@node-rs/helper": "^0.4.0"
+    "@node-rs/helper": "^0.4.0",
+    "napi-rs": "latest"
   },
   "napi": {
     "name": "tt_bot_e2p"
