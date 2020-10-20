@@ -1,0 +1,51 @@
+# Copyright (C) 2020 tt.bot dev team
+# 
+# This file is part of @tt-bot-dev/e2p.
+# 
+# @tt-bot-dev/e2p is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# @tt-bot-dev/e2p is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with @tt-bot-dev/e2p.  If not, see <http://www.gnu.org/licenses/>.
+
+[package]
+name = "tt_bot_e2p"
+version = "0.1.0"
+authors = ["TTtie <me@tttie.cz>"]
+license = "GPL-3.0-or-later"
+build = "build.rs"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = "0.4"
+napi-derive = "0.4"
+image = "0.23.10"
+gif = "0.11.1"
+
+[dependencies.apng]
+version = "0.2"
+git = "https://owo.codes/tt.bot/external/apng.git"
+rev = "a3504cd58e312ab55128a0f640c7efd84bc08331"
+
+[target.'cfg(all(unix, not(target_env = "musl")))'.dependencies]
+jemallocator = {version = "0.3", features = ["disable_initial_exec_tls"]}
+
+[target.'cfg(windows)'.dependencies]
+mimalloc = {version = "0.1"}
+
+[build-dependencies]
+napi-build = "0.2"
+
+[profile.release]
+lto = true
+opt-level = 3
