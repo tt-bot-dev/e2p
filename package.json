@@ -17,7 +17,11 @@
     "@node-rs/helper": "^0.4.0",
     "napi-rs": "latest"
   },
+  "types": "./index.d.ts",
   "napi": {
-    "name": "tt_bot_e2p"
+    "name": "tt_bot_e2p",
+    "musl": [
+      "linux"
+    ]
   }
 }
