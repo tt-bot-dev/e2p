@@ -29,12 +29,12 @@ declare namespace e2p {
         y: number;
     }
 
-    export function resizeImage(image: Image, width: number): Image;
-    export function compositeImage(image: Image, image2: Image, x: number, y: number): Image;
-    export function encodeAPNG(frames: Image[]): Buffer;
-    export function encodeGIF(frames: Image[]): Buffer;
-    export function decodeGIF(buffer: Buffer): AnimatedImage[];
-    export function decodePNG(buffer: Buffer): AnimatedImage[];
+    export function resizeImage(image: Image, width: number): Promise<Image>;
+    export function compositeImage(image: Image, image2: Image, x: number, y: number): Promise<Image>;
+    export function encodeAPNG(frames: Image[]): Promise<Buffer>;
+    export function encodeGIF(frames: Image[]): Promise<Buffer>;
+    export function decodeGIF(buffer: Buffer): Promise<AnimatedImage[]>;
+    export function decodePNG(buffer: Buffer): Promise<AnimatedImage[]>;
 }
 
 export = e2p;
