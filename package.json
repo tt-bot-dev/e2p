@@ -10,12 +10,12 @@
   "author": "TTtie <me@tttie.cz>",
   "license": "GPL-3.0-or-later",
   "scripts": {
-    "build": "cargo build --release && napi build --platform --release",
-    "install": "cargo build --release && napi build --platform --release"
+    "build": "napi build --platform --release",
+    "install": "napi build --platform --release"
   },
   "dependencies": {
-    "@node-rs/helper": "^0.4.0",
-    "napi-rs": "latest"
+    "@napi-rs/cli": "^1.0.0",
+    "@node-rs/helper": "^1.1.0"
   },
   "types": "./index.d.ts",
   "napi": {

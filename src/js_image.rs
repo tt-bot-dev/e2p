@@ -44,7 +44,7 @@ impl JsImage {
         let width: u32 = obj.get_named_property::<JsNumber>("width")?.try_into()?;
         let height: u32 = obj.get_named_property::<JsNumber>("height")?.try_into()?;
 
-        let typed_array = Vec::from(&buf as &[u8]);
+        let typed_array = Vec::from(&buf.into_value()? as &[u8]);
         Ok(Self {
             width: width,
             height: height,
@@ -53,7 +53,7 @@ impl JsImage {
     }
 
     pub(crate) fn dyn_image_into_js_object(env: &Env, dyn_image: image::DynamicImage) -> Result<JsObject> {
-        JsImage::image_into_js_object(env, dyn_image.to_rgba())
+        JsImage::image_into_js_object(env, dyn_image.to_rgba8())
     }
 
     pub(crate) fn image_into_js_object(env: &Env, image: image::RgbaImage) -> Result<JsObject> {
@@ -62,7 +62,7 @@ impl JsImage {
         let data = image.to_vec();
         out.set_named_property(
             "data",
-            env.create_buffer_with_data(data)?,
+            env.create_buffer_with_data(data)?.into_raw(),
         )?;
 
         out.set_named_property("width", env.create_uint32(image.width())?)?;

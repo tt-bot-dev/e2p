@@ -28,6 +28,7 @@ use image::{
 };
 use napi::*;
 use std::io::Cursor;
+use std::result::Result as StdResult;
 
 pub(crate) struct ResizeTask(pub(crate) JsImage, pub(crate) u32);
 
@@ -47,8 +48,8 @@ impl Task for ResizeTask {
         Ok(dyn_image.resize(self.1, self.1, FilterType::Triangle))
     }
 
-    fn resolve(&self, env: &mut Env, output: Self::Output) -> Result<Self::JsValue> {
-        JsImage::dyn_image_into_js_object(env, output)
+    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+        JsImage::dyn_image_into_js_object(&env, output)
     }
 }
 
@@ -64,27 +65,24 @@ impl Task for CompositeTask {
     type JsValue = JsObject;
 
     fn compute(&mut self) -> Result<Self::Output> {
-        let image1 = RgbaImage::from_raw(self.0.width, self.0.height, self.0.data.clone());
+        let images = (
+            RgbaImage::from_raw(self.0.width, self.0.height, self.0.data.clone()),
+            RgbaImage::from_raw(self.1.width, self.1.height, self.1.data.clone())
+        );
 
-        if image1.is_none() {
-            return Err(Error::from_reason("Invalid bottom image".to_owned()));
+        match images {
+            (Some(mut image1), Some(image2)) => {
+                overlay(&mut image1, &image2, self.2, self.3);
+                Ok(image1)
+            }
+            _ => {
+                Err(Error::from_reason("Invalid image data".to_owned()))
+            }
         }
-
-        let image2 = RgbaImage::from_raw(self.1.width, self.1.height, self.1.data.clone());
-
-        if image2.is_none() {
-            return Err(Error::from_reason("Invalid top image".to_owned()));
-        }
-
-        let mut image1 = image1.unwrap();
-        let image2 = image2.unwrap();
-
-        overlay(&mut image1, &image2, self.2, self.3);
-        Ok(image1)
     }
 
-    fn resolve(&self, env: &mut Env, output: Self::Output) -> Result<Self::JsValue> {
-        JsImage::image_into_js_object(env, output)
+    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+        JsImage::image_into_js_object(&env, output)
     }
 }
 
@@ -97,30 +95,24 @@ impl Task for GenerateAPNGTask {
     fn compute(&mut self) -> Result<Self::Output> {
         let mut vec = Vec::new();
 
-        let images = self.0.iter().map(|v| {
+        let images: Result<Vec<_>> = self.0.iter().map(|v| {
             let img = RgbaImage::from_raw(v.width, v.height, v.data.clone());
             if img.is_none() {
                 return Err(Error::from_reason("Invalid image data".to_owned()));
             }
+
             let dyn_img = load_dynamic_image(image::DynamicImage::ImageRgba8(img.unwrap()));
             if dyn_img.is_err() {
                 return Err(Error::from_reason("Invalid image data".to_owned()));
             }
 
             Ok(dyn_img.unwrap())
-        });
-        let mut more_images: Vec<_> = Vec::new();
+        }).collect();
 
-        for img in images {
-            if let Err(e) = img {
-                return Err(e);
-            } else {
-                more_images.push(img.unwrap())
-            }
-        }
+        let images = images?;
 
         {
-            let config = apng::create_config(&more_images, None);
+            let config = apng::create_config(&images, None);
             if let Err(_) = config {
                 return Err(Error::from_reason("Cannot encode image".to_owned()));
             }
@@ -138,7 +130,7 @@ impl Task for GenerateAPNGTask {
                 ..Default::default()
             };
 
-            if let Err(_) = enc.encode_all(more_images, Some(&frame)) {
+            if let Err(_) = enc.encode_all(images, Some(&frame)) {
                 return Err(Error::from_reason("Couldn't encode APNG".to_owned()));
             }
         }
@@ -146,8 +138,8 @@ impl Task for GenerateAPNGTask {
         Ok(vec)
     }
 
-    fn resolve(&self, env: &mut Env, output: Self::Output) -> Result<Self::JsValue> {
-        env.create_buffer_with_data(output)
+    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+        Ok(env.create_buffer_with_data(output)?.into_raw())
     }
 }
 
@@ -160,28 +152,22 @@ impl Task for GenerateGIFTask {
     fn compute(&mut self) -> Result<Self::Output> {
         let mut vec = Vec::new();
 
-        let images = self.0.iter().map(|v| {
+        let images: Result<Vec<_>> = self.0.iter().map(|v| {
             let img = RgbaImage::from_raw(v.width, v.height, v.data.clone());
             if img.is_none() {
                 return Err(Error::from_reason("Invalid image data".to_owned()));
             }
 
             Ok(img.unwrap())
-        });
-        let mut more_images: Vec<_> = Vec::new();
+        }).collect();
 
-        for img in images {
-            if let Err(e) = img {
-                return Err(e);
-            } else {
-                more_images.push(img.unwrap())
-            }
-        }
+        let images = images?;
+        
         {
             let enc = GifEncoder::new(
                 &mut vec,
-                more_images[0].width() as u16,
-                more_images[0].height() as u16,
+                images[0].width() as u16,
+                images[0].height() as u16,
                 &[],
             );
 
@@ -191,7 +177,7 @@ impl Task for GenerateGIFTask {
 
             let mut enc = enc.unwrap();
 
-            for image in more_images {
+            for image in images {
                 let mut frame = gif::Frame::from_rgba_speed(
                     image.width() as u16,
                     image.height() as u16,
@@ -213,15 +199,15 @@ impl Task for GenerateGIFTask {
         Ok(vec)
     }
 
-    fn resolve(&self, env: &mut Env, output: Self::Output) -> Result<Self::JsValue> {
-        env.create_buffer_with_data(output)
+    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+        Ok(env.create_buffer_with_data(output)?.into_raw())
     }
 }
 
 pub(crate) struct DecodeGIFTask(pub(crate) Vec<u8>);
 
 impl Task for DecodeGIFTask {
-    type Output = Vec<Result<JsAnimatedImage>>;
+    type Output = Vec<JsAnimatedImage>;
     type JsValue = JsObject;
 
     fn compute(&mut self) -> Result<Self::Output> {
@@ -234,47 +220,43 @@ impl Task for DecodeGIFTask {
 
         let dec = dec.unwrap();
 
-        let frames = dec.into_frames();
+        let frames: StdResult<Vec<_>, _> = dec.into_frames().into_iter().collect();
+
+        if let Err(_) = frames {
+            return Err(Error::from_reason("Invalid image data".to_owned()));
+        }
+
+        let frames = frames.unwrap();
 
         Ok(frames
-            .map(|i| {
-                if let Err(_) = i {
-                    return Err(Error::from_reason("Invalid image data".to_owned()));
-                }
-
-                let f = i.unwrap();
-                let image = JsAnimatedImage {
+            .into_iter()
+            .map(|f| {
+                JsAnimatedImage {
                     data: f.buffer().to_vec(),
                     delay: f.delay().numer_denom_ms(),
                     x: f.left(),
                     y: f.top(),
                     width: f.buffer().width(),
                     height: f.buffer().height(),
-                };
-                Ok(image)
+                }
             })
             .collect::<Self::Output>())
     }
 
-    fn resolve(&self, env: &mut Env, output: Self::Output) -> Result<Self::JsValue> {
+    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
         let mut arr = env.create_array_with_length(output.len())?;
 
         for i in 0..output.len() {
-            let buf = output[i].as_ref();
-            if let Err(e) = buf {
-                return Err(e.clone());
-            }
-
-            let buf = buf.unwrap();
+            let buf = &output[i];
             let mut out = env.create_object()?;
 
-            out.set_named_property("data", env.create_buffer_with_data(buf.data.clone())?)?;
+            out.set_named_property("data", env.create_buffer_with_data(buf.data.clone())?.into_raw())?;
             out.set_named_property("width", env.create_uint32(buf.width)?)?;
             out.set_named_property("height", env.create_uint32(buf.height)?)?;
             out.set_named_property("delay", env.create_uint32(buf.delay.0 / buf.delay.1)?)?;
             out.set_named_property("x", env.create_uint32(buf.x)?)?;
             out.set_named_property("y", env.create_uint32(buf.y)?)?;
-            arr.set_index(i, out)?;
+            arr.set_element(i as u32, out)?;
         }
 
         Ok(arr)
@@ -306,7 +288,7 @@ impl Task for DecodePNGTask {
         Ok(dyn_img)
     }
 
-    fn resolve(&self, env: &mut Env, output: Self::Output) -> Result<Self::JsValue> {
-        JsImage::dyn_image_into_js_object(env, output)
+    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+        JsImage::dyn_image_into_js_object(&env, output)
     }
 }

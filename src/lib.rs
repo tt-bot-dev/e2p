@@ -43,7 +43,7 @@ fn resize_image(ctx: CallContext) -> Result<JsObject> {
     let image: JsObject = ctx.get(0)?;
     let image = JsImage::from(image)?;
     let target_width = ctx.get::<JsNumber>(1)?.try_into()?;
-    ctx.env.spawn(ResizeTask(image, target_width))
+    Ok(ctx.env.spawn(ResizeTask(image, target_width))?.promise_object())
 }
 
 // (image1: Image, image2: Image, x: u32, y: u32) => Image
@@ -58,7 +58,7 @@ fn composite_image(ctx: CallContext) -> Result<JsObject> {
     let x = ctx.get::<JsNumber>(2)?.try_into()?;
     let y = ctx.get::<JsNumber>(3)?.try_into()?;
 
-    ctx.env.spawn(CompositeTask(image1, image2, x, y))
+    Ok(ctx.env.spawn(CompositeTask(image1, image2, x, y))?.promise_object())
 }
 
 // (frames: Image[]) => Buffer
@@ -69,27 +69,16 @@ fn generate_apng(ctx: CallContext) -> Result<JsObject> {
         return Err(Error::from_reason("Invalid image data".to_owned()));
     }
 
-    let len = images.get_array_length()?;
+    let len = images.get_array_length_unchecked()?;
     let mut vec: Vec<JsObject> = Vec::with_capacity(len as usize);
 
     for i in 0..len {
-        vec.push(images.get_index(i)?)
+        vec.push(images.get_element_unchecked(i)?)
     }
 
-    let images = vec.into_iter().map(|val| JsImage::from(val));
+    let images: Result<Vec<_>> = vec.into_iter().map(|val| JsImage::from(val)).collect();
 
-    let images: Vec<_> = images.collect();
-    let mut more_images: Vec<_> = Vec::new();
-
-    for img in images {
-        if let Err(e) = img {
-            return Err(e);
-        } else {
-            more_images.push(img.unwrap())
-        }
-    }
-
-    ctx.env.spawn(GenerateAPNGTask(more_images))
+    Ok(ctx.env.spawn(GenerateAPNGTask(images?))?.promise_object())
 }
 
 #[js_function(1)]
@@ -99,27 +88,16 @@ fn generate_gif(ctx: CallContext) -> Result<JsObject> {
         return Err(Error::from_reason("Invalid image data".to_owned()));
     }
 
-    let len = images.get_array_length()?;
+    let len = images.get_array_length_unchecked()?;
     let mut vec: Vec<JsObject> = Vec::with_capacity(len as usize);
 
     for i in 0..len {
-        vec.push(images.get_index(i)?)
+        vec.push(images.get_element_unchecked(i)?)
     }
 
-    let images = vec.into_iter().map(|val| JsImage::from(val));
+    let images: Result<Vec<_>> = vec.into_iter().map(|val| JsImage::from(val)).collect();
 
-    let images: Vec<_> = images.collect();
-    let mut more_images: Vec<_> = Vec::new();
-
-    for img in images {
-        if let Err(e) = img {
-            return Err(e);
-        } else {
-            more_images.push(img.unwrap())
-        }
-    }
-
-    ctx.env.spawn(GenerateGIFTask(more_images))
+    Ok(ctx.env.spawn(GenerateGIFTask(images?))?.promise_object())
 }
 
 // (data: Buffer) => AnimatedImage
@@ -127,8 +105,8 @@ fn generate_gif(ctx: CallContext) -> Result<JsObject> {
 fn decode_gif(ctx: CallContext) -> Result<JsObject> {
     let byte_array: JsBuffer = ctx.get(0)?;
 
-    ctx.env
-        .spawn(DecodeGIFTask(Vec::from(&byte_array as &[u8])))
+    Ok(ctx.env
+        .spawn(DecodeGIFTask(Vec::from(&byte_array.into_value()? as &[u8])))?.promise_object())
 }
 
 // (data: Buffer) => Image
@@ -136,19 +114,18 @@ fn decode_gif(ctx: CallContext) -> Result<JsObject> {
 fn decode_png(ctx: CallContext) -> Result<JsObject> {
     let byte_array: JsBuffer = ctx.get(0)?;
 
-    ctx.env
-        .spawn(DecodePNGTask(Vec::from(&byte_array as &[u8])))
+    Ok(ctx.env
+        .spawn(DecodePNGTask(Vec::from(&byte_array.into_value()? as &[u8])))?.promise_object())
 }
 
-register_module!(tt_bot_e2p, init);
-
-fn init(module: &mut Module) -> Result<()> {
-    module.create_named_method("resizeImage", resize_image)?;
-    module.create_named_method("compositeImage", composite_image)?;
-    module.create_named_method("encodeAPNG", generate_apng)?;
-    module.create_named_method("encodeGIF", generate_gif)?;
-    module.create_named_method("decodeGIF", decode_gif)?;
-    module.create_named_method("decodePNG", decode_png)?;
+#[module_exports]
+fn init(mut exports: JsObject) -> Result<()> {
+    exports.create_named_method("resizeImage", resize_image)?;
+    exports.create_named_method("compositeImage", composite_image)?;
+    exports.create_named_method("encodeAPNG", generate_apng)?;
+    exports.create_named_method("encodeGIF", generate_gif)?;
+    exports.create_named_method("decodeGIF", decode_gif)?;
+    exports.create_named_method("decodePNG", decode_png)?;
 
     Ok(())
 }

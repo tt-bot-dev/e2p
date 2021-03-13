@@ -19,4 +19,4 @@
 
 const { loadBinding } = require("@node-rs/helper");
 
-module.exports = loadBinding(__dirname, "tt_bot_e2p", "@tt-bot-dev/e2p");
+module.exports = loadBinding(__dirname, "tt_bot_e2p");
