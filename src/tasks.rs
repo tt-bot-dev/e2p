@@ -48,7 +48,7 @@ impl Task for ResizeTask {
         Ok(dyn_image.resize(self.1, self.1, FilterType::Triangle))
     }
 
-    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+    fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
         JsImage::dyn_image_into_js_object(&env, output)
     }
 }
@@ -81,7 +81,7 @@ impl Task for CompositeTask {
         }
     }
 
-    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+    fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
         JsImage::image_into_js_object(&env, output)
     }
 }
@@ -138,7 +138,7 @@ impl Task for GenerateAPNGTask {
         Ok(vec)
     }
 
-    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+    fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
         Ok(env.create_buffer_with_data(output)?.into_raw())
     }
 }
@@ -199,7 +199,7 @@ impl Task for GenerateGIFTask {
         Ok(vec)
     }
 
-    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+    fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
         Ok(env.create_buffer_with_data(output)?.into_raw())
     }
 }
@@ -243,7 +243,7 @@ impl Task for DecodeGIFTask {
             .collect::<Self::Output>())
     }
 
-    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+    fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
         let mut arr = env.create_array_with_length(output.len())?;
 
         for i in 0..output.len() {
@@ -288,7 +288,7 @@ impl Task for DecodePNGTask {
         Ok(dyn_img)
     }
 
-    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+    fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
         JsImage::dyn_image_into_js_object(&env, output)
     }
 }

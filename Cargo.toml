@@ -21,30 +21,24 @@ version = "0.1.0"
 authors = ["TTtie <me@tttie.cz>"]
 license = "GPL-3.0-or-later"
 build = "build.rs"
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = "1.7.7"
-napi-derive = "1.1.0"
-image = "0.23.14"
-gif = "0.11.2"
+napi = "2.5.0"
+napi-derive = "2.5.0"
+image = "0.23"
+gif = "=0.11.2"
 
 [dependencies.apng]
 version = "0.2"
 git = "https://owo.codes/tt.bot/external/apng.git"
 rev = "65bace5dcb22a24d340751edbdd74353d3884fb1"
 
-[target.'cfg(all(unix, not(target_env = "musl")))'.dependencies]
-jemallocator = {version = "0.3", features = ["disable_initial_exec_tls"]}
-
-[target.'cfg(windows)'.dependencies]
-mimalloc = {version = "0.1"}
-
 [build-dependencies]
-napi-build = "1.0"
+napi-build = "2.0.1"
 
 [profile.release]
 lto = true
